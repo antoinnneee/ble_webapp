@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Web Bluetooth</title>
+    <!-- Utilisation de Tailwind CSS pour un design moderne et rapide -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6 font-sans">
+
+    <div class="max-w-md w-full bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700 text-center">
+        <!-- Icône Bluetooth -->
+        <div class="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-6 text-blue-400">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+            </svg>
+        </div>
+
+        <h1 class="text-3xl font-bold text-white mb-3">Scanner BLE</h1>
+        <p class="text-slate-400 mb-8 text-sm leading-relaxed">
+            Cliquez sur le bouton ci-dessous pour demander au navigateur d'ouvrir sa fenêtre de scan Bluetooth.
+        </p>
+
+        <button id="boutonScan"
+            class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-6 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+            <svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            Scanner les périphériques
+        </button>
+
+        <div id="resultat"
+            class="mt-8 text-left bg-slate-900/50 p-5 rounded-xl border border-slate-700 hidden transition-all">
+            <!-- Les résultats apparaîtront ici -->
+        </div>
+    </div>
+
+    <script>
+        const boutonScan = document.getElementById('boutonScan');
+        const affichageResultat = document.getElementById('resultat');
+
+        boutonScan.addEventListener('click', async () => {
+            // Affiche la zone de résultat avec un message d'attente
+            affichageResultat.classList.remove('hidden');
+            affichageResultat.innerHTML = '<p class="text-slate-400 animate-pulse text-center text-sm">Ouverture de la fenêtre système...</p>';
+
+            try {
+                // L'API Web Bluetooth demande l'accès aux appareils
+                // acceptAllDevices: true permet de lister tout ce qui passe
+                const appareil = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true
+                });
+
+                // Si l'utilisateur choisit un appareil, on met à jour l'interface
+                affichageResultat.innerHTML = `
+                    <div class="flex items-center gap-2 text-emerald-400 font-bold mb-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Appareil sélectionné !
+                    </div>
+                    <div class="space-y-2">
+                        <p class="text-sm"><strong class="text-slate-300">Nom :</strong> <span class="text-white">${appareil.name || '<span class="italic text-slate-500">Nom masqué/inconnu</span>'}</span></p>
+                        <p class="text-sm break-all"><strong class="text-slate-300">ID :</strong> <span class="text-slate-400 font-mono text-xs">${appareil.id}</span></p>
+                    </div>
+                `;
+
+            } catch (erreur) {
+                let messageErreur = erreur.message;
+
+                // Gestion des erreurs fréquentes pour aider au débogage
+                if (erreur.name === 'SecurityError') {
+                    messageErreur = "Le Bluetooth est bloqué ici. Ouvrez ce fichier HTML directement dans Chrome ou Edge sur votre PC ou Android.";
+                } else if (erreur.name === 'NotFoundError') {
+                    messageErreur = "Scan annulé par l'utilisateur ou aucun appareil sélectionné.";
+                } else if (erreur.name === 'NotSupportedError') {
+                    messageErreur = "L'API Web Bluetooth n'est pas supportée par ce navigateur (ex: Safari iOS).";
+                }
+
+                // Affichage de l'erreur
+                affichageResultat.innerHTML = `
+                    <div class="flex items-center gap-2 text-rose-400 font-bold mb-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        Erreur ou annulation
+                    </div>
+                    <p class="text-sm text-slate-400 mt-2">${messageErreur}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+
+</html>
