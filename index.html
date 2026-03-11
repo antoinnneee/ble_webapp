@@ -120,7 +120,7 @@
 
             try {
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [UART_SERVICE_UUID] }],
+                    acceptAllDevices: true,
                     optionalServices: [UART_SERVICE_UUID]
                 });
 
