@@ -7,7 +7,7 @@
     <title>Tetris BLE Controller</title>
     <!-- Utilisation de Tailwind CSS pour un design moderne et rapide -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
+    <style type="text/tailwindcss">
         .gamepad-btn {
             @apply flex items-center justify-center bg-slate-700 hover:bg-slate-600 active:bg-blue-600 text-white rounded-2xl shadow-lg transition-all active:scale-95 border border-slate-600 select-none;
         }
@@ -101,14 +101,16 @@
     </div>
 
     <script>
-        // UUIDs pour le GlouGlouBus (Service Text 1)
-        const UART_SERVICE_UUID = 'cb47ec00-0000-1000-8000-00805f9b34fb';
-        const UART_TX_CHAR_UUID = 'cb47ec01-0000-1000-8000-00805f9b34fb';
+        // UUIDs pour le jeu Tetris
+        const TETRIS_SERVICE_UUID = 'cb47ec20-0000-1000-8000-00805f9b34fb';
+        const TETRIS_MODE_UUID = 'cb47ec21-0000-1000-8000-00805f9b34fb';
+        const TETRIS_CONTROL_UUID = 'cb47ec23-0000-1000-8000-00805f9b34fb';
         // Service General pour l'advertising
         const GENERAL_SERVICE_UUID = 'cb47ec90-0000-1000-8000-00805f9b34fb';
 
         let gattServer = null;
         let txCharacteristic = null;
+        let modeCharacteristic = null;
 
         const boutonScan = document.getElementById('boutonScan');
         const sectionConnexion = document.getElementById('sectionConnexion');
@@ -122,18 +124,27 @@
 
             try {
                 // On filtre par le nom défini dans l'ESP32 : "glougloubus"
-                // On ajoute les services en optionnels pour y avoir accès après connexion
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [{ name: 'glougloubus' }],
-                    optionalServices: [GENERAL_SERVICE_UUID, UART_SERVICE_UUID]
+                    optionalServices: [GENERAL_SERVICE_UUID, TETRIS_SERVICE_UUID]
                 });
 
                 affichageResultat.innerHTML = '<p class="text-blue-400 text-center text-sm">Connexion à ' + device.name + '...</p>';
                 
                 gattServer = await device.gatt.connect();
-                // On utilise le service de texte pour envoyer les commandes
-                const service = await gattServer.getPrimaryService(UART_SERVICE_UUID);
-                txCharacteristic = await service.getCharacteristic(UART_TX_CHAR_UUID);
+                
+                // On utilise le nouveau service Tetris dedié
+                const service = await gattServer.getPrimaryService(TETRIS_SERVICE_UUID);
+                txCharacteristic = await service.getCharacteristic(TETRIS_CONTROL_UUID);
+                modeCharacteristic = await service.getCharacteristic(TETRIS_MODE_UUID);
+
+                // Démarrer automatiquement le jeu (APP_MODE_TETRIS_PLAY = 2) via le modeCharacteristic
+                try {
+                    await modeCharacteristic.writeValue(new Uint8Array([2]));
+                    console.log("Mode jeu Tetris démarré.");
+                } catch(err) {
+                    console.error("Erreur g_req_app_mode:", err);
+                }
 
                 // Succès -> Transition vers le contrôleur
                 nomAppareilLabel.innerText = device.name || "Appareil Inconnu";
@@ -158,20 +169,22 @@
         async function sendCommand(cmd) {
             if (!txCharacteristic) return;
             try {
-                const encoder = new TextEncoder();
-                await txCharacteristic.writeValue(encoder.encode(cmd));
-                console.log('Envoyé:', cmd);
+                // Envoi de la commande sous forme d'octet (0 = Left, 1 = Right, etc.)
+                await txCharacteristic.writeValue(new Uint8Array([cmd]));
+                console.log('Envoyé (Tetris CMD):', cmd);
             } catch (err) {
                 console.error('Erreur d\'envoi:', err);
             }
         }
 
-        // Mapping des boutons
-        document.getElementById('btnLeft').addEventListener('click', () => sendCommand('L'));
-        document.getElementById('btnRight').addEventListener('click', () => sendCommand('R'));
-        document.getElementById('btnDown').addEventListener('click', () => sendCommand('D'));
-        document.getElementById('btnUp').addEventListener('click', () => sendCommand('U'));
-        document.getElementById('btnRotate').addEventListener('click', () => sendCommand('T'));
+        // Mapping des boutons selon tetris_cmd_t
+        // TETRIS_CMD_LEFT = 0, TETRIS_CMD_RIGHT = 1, TETRIS_CMD_ROTATE = 2
+        // TETRIS_CMD_SOFT_DROP = 3, TETRIS_CMD_HARD_DROP = 4
+        document.getElementById('btnLeft').addEventListener('click', () => sendCommand(0));
+        document.getElementById('btnRight').addEventListener('click', () => sendCommand(1));
+        document.getElementById('btnDown').addEventListener('click', () => sendCommand(3));
+        document.getElementById('btnUp').addEventListener('click', () => sendCommand(4));
+        document.getElementById('btnRotate').addEventListener('click', () => sendCommand(2));
 
         document.getElementById('boutonDeconnecter').addEventListener('click', () => {
             if (gattServer) gattServer.disconnect();
