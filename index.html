@@ -101,9 +101,11 @@
     </div>
 
     <script>
-        // UUIDs pour le service UART (Nordic UART par défaut)
-        const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-        const UART_TX_CHAR_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+        // UUIDs pour le GlouGlouBus (Service Text 1)
+        const UART_SERVICE_UUID = 'cb47ec00-0000-1000-8000-00805f9b34fb';
+        const UART_TX_CHAR_UUID = 'cb47ec01-0000-1000-8000-00805f9b34fb';
+        // Service General pour l'advertising
+        const GENERAL_SERVICE_UUID = 'cb47ec90-0000-1000-8000-00805f9b34fb';
 
         let gattServer = null;
         let txCharacteristic = null;
@@ -119,14 +121,17 @@
             affichageResultat.innerHTML = '<p class="text-slate-400 animate-pulse text-center text-sm">Ouverture du scan...</p>';
 
             try {
+                // On filtre par le nom défini dans l'ESP32 : "glougloubus"
+                // On ajoute les services en optionnels pour y avoir accès après connexion
                 const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: [UART_SERVICE_UUID]
+                    filters: [{ name: 'glougloubus' }],
+                    optionalServices: [GENERAL_SERVICE_UUID, UART_SERVICE_UUID]
                 });
 
-                affichageResultat.innerHTML = '<p class="text-blue-400 text-center text-sm">Connexion en cours...</p>';
+                affichageResultat.innerHTML = '<p class="text-blue-400 text-center text-sm">Connexion à ' + device.name + '...</p>';
                 
                 gattServer = await device.gatt.connect();
+                // On utilise le service de texte pour envoyer les commandes
                 const service = await gattServer.getPrimaryService(UART_SERVICE_UUID);
                 txCharacteristic = await service.getCharacteristic(UART_TX_CHAR_UUID);
 
